@@ -26,8 +26,6 @@ def fetch_data(**kwargs):
     request = kwargs['request']
     upstream_urls = kwargs['upstream_urls']
 
-    #logger.info(upstream_urls)
-
     # make calls to microservices
     loop = asyncio.new_event_loop()
 
@@ -43,8 +41,6 @@ def fetch_data(**kwargs):
     # returns an array
     results = loop.run_until_complete(main())
 
-    #logger.info(results)
-
     if len(results) > 0:
         return 200, results
     return 500, None
@@ -53,7 +49,7 @@ def fetch_data(**kwargs):
 
 async def _dispatch(request, url_dict):
 
-    logger.info("attempting to dispatch upstream...")
+    logger.debug("attempting to dispatch upstream...")
 
     upstream_url = url_dict['url']
     url_id = url_dict['id']
