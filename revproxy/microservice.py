@@ -42,6 +42,9 @@ def fetch_data(**kwargs):
     results = loop.run_until_complete(main())
 
     if len(results) > 0:
+        for result in results:
+            logger.info(result['upresp'].status_code)
+                
         return 200, results
     return 500, None
 
@@ -49,10 +52,11 @@ def fetch_data(**kwargs):
 
 async def _dispatch(request, url_dict):
 
-    logger.debug("attempting to dispatch upstream...")
+    #logger.debug("attempting to dispatch upstream...")
 
     upstream_url = url_dict['url']
-    url_id = url_dict['id']
+    url_id = url_dict['track_id']
+    good_stats = url_dict['good_status_codes']
 
     request_payload = request.body
 
@@ -60,15 +64,14 @@ async def _dispatch(request, url_dict):
         upstream_url += '?' + get_encoded_query_params()
 
     request_headers = get_request_headers(request)
-    #TODO: do authorization/authentication
-    request_headers['x-access-token'] = settings.TOKEN
 
     try:
         upstream_response = requests.get(upstream_url, headers=request_headers)
     except requests.exceptions as error:
         logger.error(error)
 
-    return {'upresp': upstream_response, 'req': requests, 'id': url_id}
+    return {'upresp': upstream_response, 'good_stats': good_stats, 
+            'req': requests, 'track_id': url_id}
 
 # -----------------------------------------------------------------------------
 
