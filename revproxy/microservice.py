@@ -1,6 +1,8 @@
 # reverse_proxy/microservice.py
 # this module is basically a function based version of the ProxyView class
 
+#TODO: move this and utils.py into a separate app in api server
+
 from rest_framework import status
 from rest_framework.response import Response
 from django.utils.six.moves.urllib.parse import urlparse, urlencode, quote_plus
@@ -25,6 +27,9 @@ def fetch_data(**kwargs):
 
     request = kwargs['request']
     upstream_urls = kwargs['upstream_urls']
+    good_codes = kwargs['good_codes']
+    # make good_codes an array
+    good_codes = [int(i) for i in good_codes.split()]
 
     # make calls to microservices
     loop = asyncio.new_event_loop()
@@ -40,13 +45,20 @@ def fetch_data(**kwargs):
 
     # returns an array
     results = loop.run_until_complete(main())
+    errors = []
 
     if len(results) > 0:
+        ret_code = 200 # default ret code
         for result in results:
-            logger.info(result['upresp'].status_code)
+            if result['upresp'].status_code not in good_codes:
+                # we overwrite codes here - so only the last 
+                # bad code would be returned. revisit this
+                ret_code = result['upresp'].status_code
+                if result['upresp'].json() not in errors:
+                    errors.append(result['upresp'].json())
                 
-        return 200, results
-    return 500, None
+        return ret_code, results, errors
+    return 503, None
 
 # -----------------------------------------------------------------------------
 
@@ -56,7 +68,6 @@ async def _dispatch(request, url_dict):
 
     upstream_url = url_dict['url']
     url_id = url_dict['track_id']
-    good_stats = url_dict['good_status_codes']
 
     request_payload = request.body
 
@@ -70,8 +81,7 @@ async def _dispatch(request, url_dict):
     except requests.exceptions as error:
         logger.error(error)
 
-    return {'upresp': upstream_response, 'good_stats': good_stats, 
-            'req': requests, 'track_id': url_id}
+    return {'upresp': upstream_response, 'req': requests, 'track_id': url_id}
 
 # -----------------------------------------------------------------------------
 
