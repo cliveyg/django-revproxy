@@ -9,9 +9,10 @@ from django.utils.six.moves.urllib.parse import urlparse, urlencode, quote_plus
 from django.conf import settings
 #from django.views.decorators.csrf import csrf_exempt
 
-import requests
+import requests 
 from requests.auth import HTTPBasicAuth
 import asyncio
+import json
 
 from .utils import normalize_request_headers, encode_items
 
@@ -69,7 +70,7 @@ async def _dispatch(request, url_dict):
     upstream_url = url_dict['url']
     url_id = url_dict['track_id']
 
-    request_payload = request.body
+    #request_payload = request.body
 
     if request.GET:
         upstream_url += '?' + get_encoded_query_params()
@@ -77,8 +78,12 @@ async def _dispatch(request, url_dict):
     request_headers = get_request_headers(request)
 
     try:
-        upstream_response = requests.get(upstream_url, headers=request_headers)
+        if request.method == "GET":
+            upstream_response = requests.get(upstream_url, headers=request_headers)
+        elif request.method == "POST":
+            upstream_response = requests.post(upstream_url, data=json.dumps(request.data), headers=request_headers)
     except requests.exceptions as error:
+        #TODO: better error handling here
         logger.error(error)
 
     return {'upresp': upstream_response, 'req': requests, 'track_id': url_id}
