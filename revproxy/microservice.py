@@ -54,9 +54,13 @@ def fetch_data(**kwargs):
             if result['upresp'].status_code not in good_codes:
                 # we overwrite codes here - so only the last 
                 # bad code would be returned. revisit this
-                ret_code = result['upresp'].status_code
-                if result['upresp'].json() not in errors:
-                    errors.append(result['upresp'].json())
+                if result['upresp'].status_code > ret_code:
+                    ret_code = result['upresp'].status_code
+                    errors.append({ 'url': result['upresp'].url,
+                                    'code': result['upresp'].status_code,
+                                    'data': result['upresp'].json() })
+                #if result['upresp'].json() not in errors:
+                #    errors.append(result['upresp'].json())
                 
         return ret_code, results, errors
     return 503, None
@@ -82,11 +86,17 @@ async def _dispatch(request, url_dict):
             upstream_response = requests.get(upstream_url, headers=request_headers)
         elif request.method == "POST":
             upstream_response = requests.post(upstream_url, data=json.dumps(request.data), headers=request_headers)
+        elif request.method == "PUT":
+            upstream_response = requests.put(upstream_url, data=json.dumps(request.data), headers=request_headers)            
+        elif request.method == "DELETE":
+            upstream_response = requests.delete(upstream_url, headers=request_headers)         
     except requests.exceptions as error:
         #TODO: better error handling here
         logger.error(error)
+        #upstream_response = 
 
-    return {'upresp': upstream_response, 'req': requests, 'track_id': url_id}
+    #return {'upresp': upstream_response, 'req': requests, 'track_id': url_id}
+    return {'upresp': upstream_response, 'track_id': url_id}
 
 # -----------------------------------------------------------------------------
 
