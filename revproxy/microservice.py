@@ -74,6 +74,8 @@ async def _dispatch(request, url_dict):
     upstream_url = url_dict['url']
     url_id = url_dict['track_id']
 
+    #print("Up url is [%s]",upstream_url)
+
     #request_payload = request.body
 
     if request.GET:
