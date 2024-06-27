@@ -7,9 +7,10 @@ import urllib3
 from wsgiref.util import is_hop_by_hop
 
 from django.test import RequestFactory, TestCase
-from mock import MagicMock, patch
+from unittest.mock import MagicMock, patch
 from urllib3.exceptions import HTTPError
 
+from revproxy.response import get_streaming_amt, DEFAULT_AMT, NO_BUFFERING_AMT, get_django_response
 from .utils import (get_urlopen_mock, DEFAULT_BODY_CONTENT,
                     CustomProxyView, URLOPEN)
 
@@ -78,7 +79,11 @@ class ResponseTest(TestCase):
         with patch(URLOPEN, urlopen_mock):
             response = CustomProxyView.as_view()(request, path)
 
-        response_headers = response._headers
+        # Django 3.2+
+        if hasattr(response, 'headers'):
+            response_headers = response.headers
+        else:
+            response_headers = response._headers
 
         for header in response_headers:
             self.assertFalse(is_hop_by_hop(header))
@@ -122,7 +127,11 @@ class ResponseTest(TestCase):
         with patch(URLOPEN, urlopen_mock):
             response = CustomProxyView.as_view()(request, path)
 
-        response_headers = response._headers
+        # Django 3.2+
+        if hasattr(response, 'headers'):
+            response_headers = response.headers
+        else:
+            response_headers = response._headers
         self.assertNotIn('set-cookie', response_headers)
 
     def test_set_cookie_is_used_by_httpproxy_response(self):
@@ -157,5 +166,38 @@ class ResponseTest(TestCase):
         with patch(URLOPEN, urlopen_mock):
             response = CustomProxyView.as_view()(request, path)
 
-        response_headers = response._headers
+        # Django 3.2+
+        if hasattr(response, 'headers'):
+            response_headers = response.headers
+        else:
+            response_headers = response._headers
         self.assertFalse(response.cookies)
+
+
+class TestGetDjangoResponseStreamed(TestCase):
+
+    def test_multiple_conditions(self):
+        optional_amt = 42
+        cases = [
+            ('text/event-stream', None, NO_BUFFERING_AMT),
+            ('image/jpeg', None, DEFAULT_AMT),
+            ('image/jpeg', optional_amt, optional_amt),
+        ]
+        for content_type, optional_amt, expected_amt in cases:
+            # Provide no "Content-Length" to trigger response streaming
+            resp = urllib3.response.HTTPResponse(body=b'', headers={'Content-Type': content_type}, status=200)
+            with patch.object(resp, 'stream') as stream_mocker:
+                get_django_response(resp, streaming_amount=optional_amt)
+                self.assertTrue(stream_mocker.called)
+                self.assertEqual(stream_mocker.call_args[0][0], expected_amt)
+
+
+class TestGetStreamingAmt(TestCase):
+
+    def test_normal(self):
+        resp = urllib3.response.HTTPResponse()
+        self.assertEqual(get_streaming_amt(resp), DEFAULT_AMT)
+
+    def test_event_stream(self):
+        resp = urllib3.response.HTTPResponse(headers={'Content-Type': 'text/event-stream'})
+        self.assertEqual(get_streaming_amt(resp), NO_BUFFERING_AMT)

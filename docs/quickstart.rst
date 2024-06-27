@@ -46,21 +46,25 @@ And now add your view in the ``urls.py``:
 
 .. code-block:: python
 
+    from django.urls import re_path
+
     from myapp.views import TestProxyView
 
-    urlpatterns = patterns('', 
-        url(r'^(?P<path>.*)$', TestProxyView.as_view()),
-    )
+    urlpatterns = [
+        re_path(r'(?P<path>.*)', TestProxyView.as_view()),
+    ]
 
 Alternatively you could just use the default ProxyView as follow:
 
 .. code-block:: python
 
+    from django.urls import re_path
+
     from revproxy.views import ProxyView
 
-    urlpatterns = patterns('', 
-        url(r'^(?P<path>.*)$', ProxyView.as_view(upstream='http://example.com/')),
-    )
+    urlpatterns = [
+        re_path(r'(?P<path>.*)', ProxyView.as_view(upstream='http://example.com/')),
+    ]
 
 
 
@@ -70,7 +74,7 @@ After starting your test server you should see the content of `http://example.co
 
         An example of a project can be found here:
         https://github.com/seocam/revproxy-test
-    
+
         The provided test project is a simple Django project that makes
-        uses of revproxy. It basically possess a view.py that extends 
+        uses of revproxy. It basically possess a view.py that extends
         from ProxyView and sets the upstream address to 'httpbin.org'.

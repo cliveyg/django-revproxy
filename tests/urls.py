@@ -1,6 +1,7 @@
-from django.conf.urls import url
-from django.contrib.auth.views import login
+from django.urls import path
+
+from django.contrib.auth import login
 
 urlpatterns = [
-    url(r'^accounts/login/$', login, name='login'),
+    path('accounts/login/', login, name='login'),
 ]

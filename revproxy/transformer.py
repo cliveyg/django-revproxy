@@ -5,7 +5,11 @@ from io import StringIO
 
 import logging
 
-from django.utils.six import string_types
+try:
+    from django.utils.six import string_types
+except ImportError:
+    # Django 3 has no six
+    string_types = str
 from django.template import loader
 
 try:
@@ -59,6 +63,17 @@ class DiazoTransformer(object):
         self.log = logging.getLogger('revproxy.transformer')
         self.log.info("DiazoTransformer created")
 
+    def is_ajax(self):
+        """
+        request.is_ajax() is marked as deprecated in django 3.1. removed in 4.0
+        See: https://docs.djangoproject.com/en/3.1/releases/3.1/#id2
+        """
+        if hasattr(self.request, 'is_ajax'):
+            return self.request.is_ajax()
+        else:
+            return self.request.headers.get('x-requested-with') \
+                   == 'XMLHttpRequest'
+
     def should_transform(self):
         """Determine if we should transform the response
 
@@ -77,7 +92,7 @@ class DiazoTransformer(object):
             self.log.info("DIAZO_OFF_RESPONSE_HEADER in response.get: off")
             return False
 
-        if self.request.is_ajax():
+        if self.is_ajax():
             self.log.info("Request is AJAX")
             return False
 

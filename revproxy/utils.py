@@ -41,6 +41,11 @@ MIN_STREAMING_LENGTH = 4 * 1024  # 4KB
 
 #: Regex used to find charset in a html content type
 _get_charset_re = re.compile(r';\s*charset=(?P<charset>[^\s;]+)', re.I)
+#: Regex used to clean extra HTTP prefixes in headers
+_get_header_name_re = re.compile(
+    r'((http[-|_])*)(?P<header_name>(http[-|_]).*)',
+    re.I,
+)
 
 
 def is_html_content_type(content_type):
@@ -102,29 +107,47 @@ def get_charset(content_type):
 
 
 def required_header(header):
-    """Function that verify if the header parameter is a essential header
+    """Function that verify if the header parameter is an essential header
 
     :param header:  A string represented a header
     :returns:       A boolean value that represent if the header is required
     """
-    if header in IGNORE_HEADERS:
+    matched = _get_header_name_re.search(header)
+
+    # Ensure there is only one HTTP prefix in the header
+    header_name = matched.group('header_name') if matched else header
+
+    header_name_upper = header_name.upper().replace('-', '_')
+
+    if header_name_upper in IGNORE_HEADERS:
         return False
 
-    if header.startswith('HTTP_') or header == 'CONTENT_TYPE':
+    if header_name_upper.startswith('HTTP_') or header == 'CONTENT_TYPE':
         return True
 
     return False
 
 
 def set_response_headers(response, response_headers):
+    # check for Django 3.2 headers interface
+    # https://code.djangoproject.com/ticket/31789
+    # check and set pointer before loop to improve efficiency
+    if hasattr(response, 'headers'):
+        headers = response.headers
+    else:
+        headers = response
 
     for header, value in response_headers.items():
         if is_hop_by_hop(header) or header.lower() == 'set-cookie':
             continue
 
-        response[header.title()] = value
+        headers[header] = value
 
-    logger.debug('Response headers: %s', getattr(response, '_headers'))
+    if hasattr(response, 'headers'):
+        logger.debug('Response headers: %s', response.headers)
+    else:
+        logger.debug('Response headers: %s',
+                     getattr(response, '_headers', None))
 
 
 def normalize_request_headers(request):
@@ -185,7 +208,7 @@ def cookie_from_string(cookie_string, strict_cookies=False):
 
     else:
         valid_attrs = ('path', 'domain', 'comment', 'expires',
-                       'max_age', 'httponly', 'secure')
+                       'max-age', 'httponly', 'secure', 'samesite')
 
         cookie_dict = {}
 
@@ -220,6 +243,10 @@ def cookie_from_string(cookie_string, strict_cookies=False):
                     # ignoring comment attr as explained in the
                     # function docstring
                     continue
+                elif attr == 'max-age':
+                    # The cookie uses 'max-age' but django's
+                    # set_cookie uses 'max_age'
+                    cookie_dict['max_age'] = unquote(value)
                 else:
                     cookie_dict[attr] = unquote(value)
             else:

@@ -1,3 +1,33 @@
+0.12.0 (2023-10-19)
+===================
+
+* Declare Django 4.2 support in #167
+* Drop mock dependency in favor of unittest.mock in #168
+* Update README.rst with the correct Header name in #170. Thanks @adrgs !
+* Fixed ignored headers issue in #172. Thanks for the detailed reporting @jagotu !
+* Deprecated setup.py in github actions in #173 and #174
+
+
+0.11.0 (2023-02-26)
+===================
+
+* Add X-Forwarded-For and X-Forwarded-Proto headers. Fixes #79.
+* Add Django 3.2, 4.0 and 4.1 support. Fixes #126.
+* Add Python 3.8, 3.9, 3.10 and 3.11 support
+* Drop Python 3.4, 3.5 and 3.6 support
+* Drop Django <3.0 support
+* Fixed README badges
+
+
+0.10.0 (2020-02-05)
+===================
+
+* Fix add_remote_user when run without AuthenticationMiddleware. Fix #86
+* Add get_encoded_query_params method
+* Add support for Python 3.7 and 3.8.
+* Add support for Django 2.2 and 3.0.
+
+
 0.9.15 (2018-05-30)
 ===================
 
@@ -41,8 +71,7 @@
 0.9.9 (2015-12-15)
 ==================
 
-* Reorder header prior to httplib request. `Host` should be always the first
-request header.
+* Reorder header prior to httplib request. `Host` should be always the first request header.
 
 
 0.9.8 (2015-12-10)

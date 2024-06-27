@@ -15,11 +15,13 @@ This document covers the views provided by ``revproxy.views`` and all it's publi
 
     **Example urls.py**::
 
+        from django.urls import re_path
+
         from revproxy.views import ProxyView
 
-        urlpatterns = patterns('',
-            url(r'^(?P<path>.*)$', ProxyView.as_view(upstream='http://example.com/')),
-        )
+        urlpatterns = [
+            re_path(r'(?P<path>.*)', ProxyView.as_view(upstream='http://example.com/')),
+        ]
 
 
     **Attributes**
@@ -34,6 +36,11 @@ This document covers the views provided by ``revproxy.views`` and all it's publi
 
         Whether to add the ``REMOTE_USER`` to the request in case of an
         authenticated user. Defaults to ``False``.
+
+    .. attribute:: add_x_forwarded
+
+        Whether to add the ``X-Forwarded-For`` and ``X-Forwarded-Proto``
+        headers to the request. Defaults to ``False``.
 
     .. attribute:: default_content_type
 
@@ -75,6 +82,12 @@ This document covers the views provided by ``revproxy.views`` and all it's publi
         any cookies received from the upstream server that do not conform to
         the RFC will be dropped.
 
+    .. attribute:: streaming_amount
+
+        The buffering amount for streaming HTTP response(in bytes), response will
+        be buffered until it's length exceeds this value. ``None`` means using
+        default value, override this variable to change.
+
     **Methods**
 
     .. automethod:: revproxy.views.ProxyView.get_request_headers
@@ -104,10 +117,12 @@ This document covers the views provided by ``revproxy.views`` and all it's publi
 
         Diazo is an awesome tool developed by Plone Community to
         perform XSLT transformations in a simpler way. In order to
-        use all Diazo power please refer to: http://diazo.org/
+        use all Diazo power please refer to: http://docs.diazo.org/en/latest/
 
 
     **Example urls.py**::
+
+        from django.urls import re_path
 
         from revproxy.views import DiazoProxyView
 
@@ -117,9 +132,9 @@ This document covers the views provided by ``revproxy.views`` and all it's publi
             diazo_theme_template='base.html',
         )
 
-        urlpatterns = patterns('',
-            url(r'^(?P<path>.*)$', proxy_view),
-        )
+        urlpatterns = [
+            re_path(r'(?P<path>.*)', proxy_view),
+        ]
 
 
     **Example base.html**
@@ -131,9 +146,7 @@ This document covers the views provided by ``revproxy.views`` and all it's publi
             <body>
                 ...
                 <div id="content"></div>
-                ...
-            </body>
-        </html>
+                ...Fix all links in the docs (and README file etc) from old to new repo
 
 
     **Example diazo.xml**
@@ -185,6 +198,7 @@ This document covers the views provided by ``revproxy.views`` and all it's publi
 
        See the example bellow::
 
+          from django.urls import re_path
 
           from revproxy.views import DiazoProxyView
 
@@ -199,9 +213,9 @@ This document covers the views provided by ``revproxy.views`` and all it's publi
 
 
           # urls.py
-          urlpatterns = patterns('',
-              url(r'^(?P<path>.*)$', proxy_view),
-          )
+          urlpatterns = [
+              re_path(r'(?P<path>.*)', proxy_view),
+          ]
 
 
        And than the data will be available in the template as follow:

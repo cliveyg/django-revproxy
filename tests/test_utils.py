@@ -1,7 +1,7 @@
 
 from django.test import TestCase
 
-from mock import PropertyMock
+from unittest.mock import PropertyMock, MagicMock
 
 from revproxy import utils
 
@@ -28,8 +28,28 @@ class UtilsTest(TestCase):
     def test_ignore_host_header(self):
         self.assertFalse(utils.required_header('HTTP_HOST'))
         self.assertFalse(utils.required_header('HTTP_REMOTE_USER'))
+        self.assertFalse(utils.required_header('HTTP_Remote-User'))
+        self.assertFalse(utils.required_header('HTTP-HTTP-Remote-User'))
+        self.assertFalse(utils.required_header('HTTP-Remote_User'))
+        self.assertFalse(utils.required_header('Http-Remote-User'))
         self.assertFalse(utils.required_header('HTTP_ACCEPT_ENCODING'))
         self.assertFalse(utils.required_header('WRONG_HEADER'))
+
+    def test_normalize_request_headers(self):
+        request = MagicMock(
+            META={
+                'HTTP_ANY_THING_AFTER_HTTP': 'value',
+                'HTTP-HTTP-Remote-User': 'username',
+                'HTTP_REMOTE_USER': 'username',
+                'Http-Remote-User': 'username',
+                'HTTP_USER_AGENT': 'useragent',
+            },
+        )
+        normalized_headers = utils.normalize_request_headers(request)
+        self.assertEqual(
+            normalized_headers,
+            {'Any-Thing-After-Http': 'value', 'User-Agent': 'useragent'},
+        )
 
     def test_ignore_accept_encoding_header(self):
         self.assertFalse(utils.required_header('HTTP_ACCEPT_ENCODING'))
@@ -112,7 +132,7 @@ class UtilsTest(TestCase):
     def test_valid_attr_in_cookie_from_string(self):
         cookie = "_cookie_session=1266bb13c139cfba3ed1c9c68110bae9;" \
                  "expires=Thu, 29 Jan 2015 13:51:41 -0000; httponly;" \
-                 "secure;Path=/gitlab"
+                 "secure;Path=/gitlab;max-age=60;samesite=lax"
 
         self.assertIn('path', utils.cookie_from_string(cookie))
         self.assertIn('/', utils.cookie_from_string(cookie)['path'])
@@ -126,6 +146,12 @@ class UtilsTest(TestCase):
 
         self.assertIn('secure', utils.cookie_from_string(cookie))
         self.assertTrue(utils.cookie_from_string(cookie)['secure'])
+
+        self.assertIn('samesite', utils.cookie_from_string(cookie))
+        self.assertIn('lax', utils.cookie_from_string(cookie)['samesite'])
+
+        self.assertIn('max_age', utils.cookie_from_string(cookie))
+        self.assertIn('60', utils.cookie_from_string(cookie)['max_age'])
 
         self.assertIn('value', utils.cookie_from_string(cookie))
         self.assertIn('1266bb13c139cfba3ed1c9c68110bae9',

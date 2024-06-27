@@ -8,7 +8,12 @@ import logging
 
 import urllib3
 
-from django.utils.six.moves.urllib.parse import urlparse, urlencode, quote_plus
+try:
+    from django.utils.six.moves.urllib.parse import (
+        urlparse, urlencode, quote_plus)
+except ImportError:
+    # Django 3 has no six
+    from urllib.parse import urlparse, urlencode, quote_plus
 
 from django.shortcuts import redirect
 from django.views.generic import View
@@ -41,11 +46,20 @@ class ProxyView(View):
     """
     _upstream = None
 
+    add_x_forwarded = False
     add_remote_user = False
     default_content_type = 'application/octet-stream'
     retries = None
     rewrite = tuple()  # It will be overrided by a tuple inside tuple.
     strict_cookies = False
+    #: Do not send any body if it is empty (put ``None`` into the ``urlopen()``
+    #: call).  This is required when proxying to Shiny apps, for example.
+    suppress_empty_body = False
+
+    # The buffering amount for streaming HTTP response(in bytes), response will
+    # be buffered until it's length exceeds this value. `None` means using
+    # default value, override this variable to change.
+    streaming_amount = None
 
     def __init__(self, *args, **kwargs):
         super(ProxyView, self).__init__(*args, **kwargs)
@@ -123,6 +137,13 @@ class ProxyView(View):
 
         .. versionadded:: 0.9.8
 
+        If the view's add_x_forwarded property is True, the
+        headers X-Forwarded-For and X-Forwarded-Proto are set to the
+        IP address of the requestor and the request's protocol (http or https),
+        respectively.
+
+        .. versionadded:: TODO
+
         """
         request_headers = self.get_proxy_request_headers(self.request)
 
@@ -130,6 +151,15 @@ class ProxyView(View):
                 and self.request.user.is_active):
             request_headers['REMOTE_USER'] = self.request.user.get_username()
             self.log.info("REMOTE_USER set")
+
+        if self.add_x_forwarded:
+            request_ip = self.request.META.get('REMOTE_ADDR')
+            self.log.debug("Proxy request IP: %s", request_ip)
+            request_headers['X-Forwarded-For'] = request_ip
+
+            request_proto = "https" if self.request.is_secure() else "http"
+            self.log.debug("Proxy request using %s", request_proto)
+            request_headers['X-Forwarded-Proto'] = request_proto
 
         return request_headers
 
@@ -144,6 +174,8 @@ class ProxyView(View):
 
     def _created_proxy_response(self, request, path):
         request_payload = request.body
+        if self.suppress_empty_body and not request_payload:
+            request_payload = None
 
         self.log.debug("Request headers: %s", self.request_headers)
 
@@ -213,7 +245,8 @@ class ProxyView(View):
         self._set_content_type(request, proxy_response)
 
         response = get_django_response(proxy_response,
-                                       strict_cookies=self.strict_cookies)
+                                       strict_cookies=self.strict_cookies,
+                                       streaming_amount=self.streaming_amount)
 
         self.log.debug("RESPONSE RETURNED: %s", response)
         return response
